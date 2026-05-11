@@ -1,4 +1,6 @@
 import {
+  ORDER_PROCESSING_ATTEMPTS,
+  ORDER_PROCESSING_BACKOFF_DELAY,
   ORDERS_PROCESSING_QUEUE,
   PROCESS_ORDER_JOB,
   QueueService,
@@ -16,7 +18,14 @@ describe('QueueService', () => {
     expect(ordersQueue.add).toHaveBeenCalledWith(
       PROCESS_ORDER_JOB,
       { orderId: 'order-1' },
-      { jobId: 'order-1' },
+      {
+        attempts: ORDER_PROCESSING_ATTEMPTS,
+        backoff: {
+          type: 'exponential',
+          delay: ORDER_PROCESSING_BACKOFF_DELAY,
+        },
+        jobId: 'order-1',
+      },
     );
   });
 

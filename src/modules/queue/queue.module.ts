@@ -4,7 +4,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EnrichmentModule } from '../enrichment/enrichment.module';
 import { OrdersModule } from '../orders/orders.module';
 import { OrdersProcessor } from './processors/orders.processor';
-import { ORDERS_PROCESSING_QUEUE, QueueService } from './queue.service';
+import {
+  ORDERS_DLQ_QUEUE,
+  ORDERS_PROCESSING_QUEUE,
+  QueueService,
+} from './queue.service';
 
 @Module({
   imports: [
@@ -22,6 +26,9 @@ import { ORDERS_PROCESSING_QUEUE, QueueService } from './queue.service';
     }),
     BullModule.registerQueue({
       name: ORDERS_PROCESSING_QUEUE,
+    }),
+    BullModule.registerQueue({
+      name: ORDERS_DLQ_QUEUE,
     }),
   ],
   providers: [QueueService, OrdersProcessor],
