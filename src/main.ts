@@ -16,7 +16,7 @@ async function bootstrap() {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Inbazz Desafio API')
-    .setDescription('API para orquestracao de pedidos')
+    .setDescription('API para orquestração de pedidos')
     .setVersion('1.0.0')
     .build();
 

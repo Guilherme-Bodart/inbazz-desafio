@@ -9,10 +9,10 @@ export class QueueController {
 
   @Get('metrics')
   @ApiOperation({
-    summary: 'Consulta metricas das filas',
+    summary: 'Consulta métricas das filas',
   })
   @ApiOkResponse({
-    description: 'Metricas atuais da fila de processamento e da DLQ.',
+    description: 'Métricas atuais da fila de processamento e da DLQ.',
   })
   getMetrics() {
     return this.queueService.getMetrics();
