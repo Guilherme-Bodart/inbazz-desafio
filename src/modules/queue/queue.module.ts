@@ -1,12 +1,14 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { EnrichmentModule } from '../enrichment/enrichment.module';
 import { OrdersModule } from '../orders/orders.module';
 import { OrdersProcessor } from './processors/orders.processor';
 import { ORDERS_PROCESSING_QUEUE, QueueService } from './queue.service';
 
 @Module({
   imports: [
+    EnrichmentModule,
     OrdersModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
