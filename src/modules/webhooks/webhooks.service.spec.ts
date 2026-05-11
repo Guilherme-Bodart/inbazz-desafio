@@ -43,6 +43,7 @@ jest.mock('../orders/orders.service', () => ({
 
 import { Prisma } from '../../../generated/prisma/client';
 import type { OrdersService } from '../orders/orders.service';
+import type { QueueService } from '../queue/queue.service';
 import { WebhooksService } from './webhooks.service';
 
 describe('WebhooksService', () => {
@@ -66,11 +67,20 @@ describe('WebhooksService', () => {
   const existingOrder = {
     id: 'order-1',
     idempotencyKey: dto.idempotency_key,
+    status: 'RECEIVED',
     items: [],
   };
 
-  function createService(ordersService: Partial<jest.Mocked<OrdersService>>) {
-    return new WebhooksService(ordersService as jest.Mocked<OrdersService>);
+  function createService(
+    ordersService: Partial<jest.Mocked<OrdersService>>,
+    queueService: Partial<jest.Mocked<QueueService>> = {
+      enqueueOrderProcessing: jest.fn(),
+    },
+  ) {
+    return new WebhooksService(
+      ordersService as jest.Mocked<OrdersService>,
+      queueService as jest.Mocked<QueueService>,
+    );
   }
 
   it('returns an existing order for a repeated idempotency key', async () => {
@@ -78,12 +88,36 @@ describe('WebhooksService', () => {
       findByIdempotencyKey: jest.fn().mockResolvedValue(existingOrder),
       createOrder: jest.fn(),
     };
-    const service = createService(ordersService);
+    const queueService = {
+      enqueueOrderProcessing: jest.fn(),
+    };
+    const service = createService(ordersService, queueService);
 
-    await expect(service.createOrderFromWebhook(dto)).resolves.toBe(
-      existingOrder,
-    );
+    await expect(service.createOrderFromWebhook(dto)).resolves.toEqual({
+      id: existingOrder.id,
+      status: existingOrder.status,
+    });
     expect(ordersService.createOrder).not.toHaveBeenCalled();
+    expect(queueService.enqueueOrderProcessing).not.toHaveBeenCalled();
+  });
+
+  it('enqueues a newly created order for async processing', async () => {
+    const ordersService = {
+      findByIdempotencyKey: jest.fn().mockResolvedValue(null),
+      createOrder: jest.fn().mockResolvedValue(existingOrder),
+    };
+    const queueService = {
+      enqueueOrderProcessing: jest.fn().mockResolvedValue({ id: 'job-1' }),
+    };
+    const service = createService(ordersService, queueService);
+
+    await expect(service.createOrderFromWebhook(dto)).resolves.toEqual({
+      id: existingOrder.id,
+      status: existingOrder.status,
+    });
+    expect(queueService.enqueueOrderProcessing).toHaveBeenCalledWith(
+      existingOrder.id,
+    );
   });
 
   it('returns the persisted order when a concurrent create hits the unique constraint', async () => {
@@ -104,11 +138,16 @@ describe('WebhooksService', () => {
         .mockResolvedValueOnce(existingOrder),
       createOrder: jest.fn().mockRejectedValue(uniqueConstraintError),
     };
-    const service = createService(ordersService);
+    const queueService = {
+      enqueueOrderProcessing: jest.fn(),
+    };
+    const service = createService(ordersService, queueService);
 
-    await expect(service.createOrderFromWebhook(dto)).resolves.toBe(
-      existingOrder,
-    );
+    await expect(service.createOrderFromWebhook(dto)).resolves.toEqual({
+      id: existingOrder.id,
+      status: existingOrder.status,
+    });
     expect(ordersService.findByIdempotencyKey).toHaveBeenCalledTimes(2);
+    expect(queueService.enqueueOrderProcessing).not.toHaveBeenCalled();
   });
 });
