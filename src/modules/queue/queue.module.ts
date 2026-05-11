@@ -1,10 +1,13 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { OrdersModule } from '../orders/orders.module';
+import { OrdersProcessor } from './processors/orders.processor';
 import { ORDERS_PROCESSING_QUEUE, QueueService } from './queue.service';
 
 @Module({
   imports: [
+    OrdersModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -19,7 +22,7 @@ import { ORDERS_PROCESSING_QUEUE, QueueService } from './queue.service';
       name: ORDERS_PROCESSING_QUEUE,
     }),
   ],
-  providers: [QueueService],
+  providers: [QueueService, OrdersProcessor],
   exports: [QueueService],
 })
 export class QueueModule {}
