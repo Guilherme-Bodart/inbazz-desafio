@@ -13,6 +13,8 @@ export class QueueService {
   constructor(
     @InjectQueue(ORDERS_PROCESSING_QUEUE)
     private readonly ordersQueue: Queue,
+    @InjectQueue(ORDERS_DLQ_QUEUE)
+    private readonly ordersDlq: Queue,
   ) {}
 
   enqueueOrderProcessing(orderId: string) {
@@ -28,5 +30,32 @@ export class QueueService {
         jobId: orderId,
       },
     );
+  }
+
+  async getMetrics() {
+    const [ordersCounts, dlqCounts] = await Promise.all([
+      this.ordersQueue.getJobCounts(
+        'waiting',
+        'active',
+        'completed',
+        'failed',
+        'delayed',
+      ),
+      this.ordersDlq.getJobCounts('waiting', 'active', 'completed', 'failed'),
+    ]);
+
+    return {
+      waiting: ordersCounts.waiting,
+      active: ordersCounts.active,
+      completed: ordersCounts.completed,
+      failed: ordersCounts.failed,
+      delayed: ordersCounts.delayed,
+      dlq: {
+        waiting: dlqCounts.waiting,
+        active: dlqCounts.active,
+        completed: dlqCounts.completed,
+        failed: dlqCounts.failed,
+      },
+    };
   }
 }

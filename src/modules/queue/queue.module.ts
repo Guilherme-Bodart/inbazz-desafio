@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EnrichmentModule } from '../enrichment/enrichment.module';
 import { OrdersModule } from '../orders/orders.module';
 import { OrdersProcessor } from './processors/orders.processor';
+import { QueueController } from './queue.controller';
 import {
   ORDERS_DLQ_QUEUE,
   ORDERS_PROCESSING_QUEUE,
@@ -31,6 +32,7 @@ import {
       name: ORDERS_DLQ_QUEUE,
     }),
   ],
+  controllers: [QueueController],
   providers: [QueueService, OrdersProcessor],
   exports: [QueueService],
 })
