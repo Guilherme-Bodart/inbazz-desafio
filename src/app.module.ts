@@ -7,12 +7,15 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { PrismaModule } from './prisma/prisma.module';
 
-
 @Module({
-  imports: [ConfigModule.forRoot(
-    { isGlobal: true }
-  ), PrismaModule, OrdersModule, WebhooksModule, QueueModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    PrismaModule,
+    OrdersModule,
+    WebhooksModule,
+    QueueModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

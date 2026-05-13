@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import type { Order, OrderStatus, Prisma } from '../../../generated/prisma/client';
+import type {
+  Order,
+  OrderStatus,
+  Prisma,
+} from '../../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const orderWithItemsInclude = {

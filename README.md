@@ -1,8 +1,88 @@
+# Desafio Backend Pleno - Orquestrador de Pedidos
+
+Criar uma API que:
+
+1. Receba pedidos via **webhook**.
+2. **Valide** e **enfileire** para processamento assíncrono.
+3. **Enriqueça os dados** do pedido consultando um **serviço externo**.
+4. Utilize **filas** para processamento e **mecanismos de retry** em caso de falhas.
+5. Demonstre **boas práticas de código e arquitetura**.
+6. Utilizar **NestJS**.
+
+---
+
+### Receber Pedido (Webhook)
+
+`POST /webhooks/orders`
+
+**Exemplo de payload:**
+
+```json
+{
+  "order_id": "ext-123",
+  "customer": { "email": "user@example.com", "name": "Ana" },
+  "items": [{ "sku": "ABC123", "qty": 2, "unit_price": 59.9 }],
+  "currency": "USD",
+  "idempotency_key": "uuid-or-hash"
+}
+```
+
+**Requisitos:**
+
+- Validar o payload recebido.
+- Garantir **idempotência** (não processar o mesmo pedido duas vezes).
+- Enfileirar o pedido para processamento.
+- Persistir o pedido no banco (status inicial: `RECEIVED`).
+
+---
+
+### Enriquecimento
+
+- Consultar um **serviço externo** para complementar informações do pedido (por exemplo, converter o total para outra moeda ou validar dados de cliente).
+- Atualizar o pedido com as informações obtidas.
+- Em caso de erro:
+  - Retentar algumas vezes com backoff.
+  - Caso todas as tentativas falhem, enviar o job para uma **DLQ (Dead Letter Queue)**.
+  - Atualizar o status para `FAILED_ENRICHMENT`.
+
+---
+
+### Consulta e Administração
+
+- `GET /orders` - listar pedidos, com filtro opcional por status.
+- `GET /orders/:id` - exibir os detalhes de um pedido.
+- `GET /queue/metrics` - exibir informações gerais da fila.
+
+---
+
+### Sugestão de Integração Externa
+
+Você pode escolher **qualquer serviço externo público** para demonstrar o uso de integrações.
+Algumas possibilidades incluem:
+
+- API de câmbio (ex.: para converter valores de moedas);
+- API de CEP (ex.: para validar endereços de clientes);
+- API de produtos (ex.: para validar SKUs);
+- API de tempo ou geolocalização (apenas para demonstrar integração).
+
+---
+
+### Testes (opcionais)
+
+Os testes são opcionais, mas podem demonstrar melhor sua capacidade de estruturar o código e validar comportamentos.
+É importante que o fluxo da **fila** esteja representado nos testes, validando o processamento assíncrono e as transições de status.
+
+---
+
+O README foi escrito com apoio de IA. Usei a ferramenta para revisar o código e gerar uma documentação mais completa, depois validei e ajustei o texto para refletir a implementação.
+
+### Entregáveis
+
+Repositório público (GitHub ou GitLab) com o código do desafio implementado.
+
 # Inbazz Desafio Backend Pleno - Orquestrador de Pedidos
 
 API em NestJS para receber pedidos via webhook, persistir com idempotência, processar em fila com BullMQ, enriquecer dados usando uma API externa de câmbio e expor consultas administrativas.
-
-> Este README mantém o enunciado original do desafio ao final e adiciona, no início, as instruções e decisões da implementação entregue.
 
 ## Implementação
 
@@ -11,9 +91,9 @@ API em NestJS para receber pedidos via webhook, persistir com idempotência, pro
 - Node.js + NestJS
 - PostgreSQL
 - Prisma ORM
-- Redis + BullMQ
-- Swagger
-- Jest + Supertest
+- Redis + BullMQ (Fila)
+- Swagger (Para testar os endpoints no /api)
+- Jest + Supertest (Jest + SuperTest testa a camada HTTP da API Nest, com casos bons e ruins)
 - API externa Frankfurter para câmbio
 
 ### Arquitetura
@@ -34,21 +114,11 @@ Fluxo principal:
 Organização principal:
 
 ```txt
+prisma/ (INFRA)
 src/
   modules/
-    webhooks/
-    orders/
-    queue/
-    enrichment/
-  prisma/
-prisma/
-  schema.prisma
-  migrations/
+  prisma/ (APLICAÇÃO)
 test/
-  helpers/
-  webhooks.e2e-spec.ts
-  orders.e2e-spec.ts
-  queue.e2e-spec.ts
 ```
 
 ### Variáveis de ambiente
@@ -97,17 +167,38 @@ Suba PostgreSQL e Redis localmente e inicie a API:
 npm run start:dev
 ```
 
-A aplicação roda por padrão em:
+A aplicação tenta subir na porta `3000`. Se ela já estiver em uso, usa a porta `3001` automaticamente.
 
 ```txt
 http://localhost:3000
+http://localhost:3001
 ```
 
 Swagger:
 
 ```txt
 http://localhost:3000/api
+http://localhost:3001/api
 ```
+
+### Como rodar com Docker
+
+Suba app, PostgreSQL e Redis com Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+O container da aplicação executa `npx prisma migrate deploy` antes de iniciar o servidor em modo produção.
+
+Serviços expostos:
+
+- API: `http://localhost:3000`
+- Swagger: `http://localhost:3000/api`
+- PostgreSQL: `localhost:5432`
+- Redis: `localhost:6379`
+
+Dentro do Docker, a aplicação usa os hosts internos `postgres` e `redis`, definidos no `docker-compose.yml`.
 
 ### Endpoints
 
@@ -262,72 +353,3 @@ A suite cobre:
 
 ---
 
-## Enunciado original do desafio
-
-# Desafio Backend Pleno - Orquestrador de Pedidos
-
-Criar uma API que:
-1. Receba pedidos via **webhook**.
-2. **Valide** e **enfileire** para processamento assíncrono.
-3. **Enriqueça os dados** do pedido consultando um **serviço externo**.
-4. Utilize **filas** para processamento e **mecanismos de retry** em caso de falhas.
-5. Demonstre **boas práticas de código e arquitetura**.
-6. Utilizar **NestJS**.
-
----
-
-### Receber Pedido (Webhook)
-`POST /webhooks/orders`
-
-**Exemplo de payload:**
-```json
-{
-  "order_id": "ext-123",
-  "customer": { "email": "user@example.com", "name": "Ana" },
-  "items": [{ "sku": "ABC123", "qty": 2, "unit_price": 59.9 }],
-  "currency": "USD",
-  "idempotency_key": "uuid-or-hash"
-}
-```
-
-**Requisitos:**
-- Validar o payload recebido.
-- Garantir **idempotência** (não processar o mesmo pedido duas vezes).
-- Enfileirar o pedido para processamento.
-- Persistir o pedido no banco (status inicial: `RECEIVED`).
-
----
-
-### Enriquecimento
-- Consultar um **serviço externo** para complementar informações do pedido (por exemplo, converter o total para outra moeda ou validar dados de cliente).
-- Atualizar o pedido com as informações obtidas.
-- Em caso de erro:
-    - Retentar algumas vezes com backoff.
-    - Caso todas as tentativas falhem, enviar o job para uma **DLQ (Dead Letter Queue)**.
-    - Atualizar o status para `FAILED_ENRICHMENT`.
-
----
-
-### Consulta e Administração
-- `GET /orders` - listar pedidos, com filtro opcional por status.
-- `GET /orders/:id` - exibir os detalhes de um pedido.
-- `GET /queue/metrics` - exibir informações gerais da fila.
-
----
-
-### Sugestão de Integração Externa
-Você pode escolher **qualquer serviço externo público** para demonstrar o uso de integrações.
-Algumas possibilidades incluem:
-- API de câmbio (ex.: para converter valores de moedas);
-- API de CEP (ex.: para validar endereços de clientes);
-- API de produtos (ex.: para validar SKUs);
-- API de tempo ou geolocalização (apenas para demonstrar integração).
----
-
-### Testes (opcionais)
-Os testes são opcionais, mas podem demonstrar melhor sua capacidade de estruturar o código e validar comportamentos.
-É importante que o fluxo da **fila** esteja representado nos testes, validando o processamento assíncrono e as transições de status.
-
----
-### Entregáveis
-Repositório público (GitHub ou GitLab) com o código do desafio implementado.
